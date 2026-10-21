@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrenador Wh- Anthophila - Maestría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', 'Arial', sans-serif;
+            background-color: #ffffff;
+            color: #333;
+            overflow-x: hidden;
+            line-height: 2.0;
+        }
+        .drop-zone {
+            min-height: 140px;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.highlight {
+            animation: pulse-border 1s infinite;
+        }
+        @keyframes pulse-border {
+            0% { transform: scale(1); border-color: inherit; }
+            50% { transform: scale(1.05); border-color: #000; border-width: 4px; }
+            100% { transform: scale(1); border-color: inherit; }
+        }
+        .draggable-card { cursor: grab; touch-action: none; }
+        .draggable-card:active { cursor: grabbing; }
+        .feedback-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.95); z-index: 1000; display: none;
+        }
+        .progress-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin: 0 4px; border: 1px solid #ccc; }
+        .dot-success { background-color: #10b981; border-color: #059669; }
+        .dot-fail { background-color: #ef4444; border-color: #dc2626; }
+    </style>
+</head>
+<body class="bg-white">
+
+<div id="auth-overlay" class="fixed inset-0 bg-slate-900 bg-opacity-95 z-[2000] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 text-center">
+        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl font-bold">
+            🔒
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Restringido</h2>
+        <p class="text-gray-500 text-sm mb-6">Ingresa la contraseña para acceder al Entrenador Wh- Anthophila.</p>
+        
+        <form onsubmit="checkPassword(event)" class="space-y-4">
+            <div>
+                <input type="password" id="access-password" placeholder="Escribe la contraseña..." 
+                       class="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-center text-lg focus:border-blue-500 focus:outline-none transition">
+            </div>
+            <p id="auth-error" class="text-red-500 text-sm hidden font-semibold">Contraseña incorrecta. Inténtalo de nuevo.</p>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl text-lg shadow-lg transition active:scale-95">
+                Ingresar
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="app" class="max-w-6xl mx-auto p-6 hidden">
+    <!-- Header / Status de Maestría -->
+    <header class="flex flex-col md:flex-row justify-between items-center mb-8 border-b pb-4 gap-4">
+        <div class="flex items-center gap-4">
+            <button onclick="goHome()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
+                🏠 Ir al Inicio
+            </button>
+            <div>
+                <h1 class="text-2xl font-bold text-blue-600">Entrenador Anthophila</h1>
+                <p id="current-stage-name" class="text-sm text-gray-500">Pre-enseñanza de Vocabulario Crítico</p>
+            </div>
+        </div>
+        <div class="flex flex-col items-end">
+            <div id="mastery-tracker" class="flex items-center gap-2">
+                <span class="text-xs font-bold uppercase">Estabilidad (3/5):</span>
+                <div id="session-dots"></div>
+            </div>
+            <div class="text-xs font-semibold text-gray-400 mt-1">Meta: 87% Precisión Independiente</div>
+        </div>
+    </header>
+
+    <main id="main-content" class="min-h-[60vh] flex flex-col items-center justify-center">
+        <!-- Inyección dinámica -->
+    </main>
+
+    <footer class="mt-8 flex justify-center">
+        <button id="btn-next" class="hidden bg-blue-600 text-white px-10 py-4 rounded-xl text-2xl font-bold shadow-lg hover:bg-blue-700 transition">Siguiente</button>
+    </footer>
+</div>
+
+<div id="feedback" class="feedback-overlay">
+    <div class="text-center">
+        <div id="feedback-icon" class="text-9xl mb-4"></div>
+        <div id="feedback-text" class="text-4xl font-bold"></div>
+    </div>
+</div>
+
+<script>
+    // --- MÓDULO DE PROTECCIÓN POR CONTRASEÑA ---
+    const ACCESS_PASSWORD = "anthophila2026"; // Cambia tu contraseña aquí
+
+    function checkPassword(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('access-password').value;
+        const authError = document.getElementById('auth-error');
+        const authOverlay = document.getElementById('auth-overlay');
+        const app = document.getElementById('app');
+
+        if (input === ACCESS_PASSWORD) {
+            sessionStorage.setItem('anthophila_authenticated', 'true');
+            authOverlay.classList.add('hidden');
+            app.classList.remove('hidden');
+            init();
+        } else {
+            authError.classList.remove('hidden');
+            document.getElementById('access-password').value = '';
+        }
+    }
+
+    // --- NIVELES DE APOYO ---
+    const SUPPORT_LEVELS = {
+        1: { name: 'Nivel 1 (Independiente)', desc: '5 segundos para que el niño actúe solo.' },
+        2: { name: 'Nivel 2 (Ayuda Verbal)', desc: 'Se le recuerda la definición de la categoría.' },
+        3: { name: 'Nivel 3 (Ayuda Gestual)', desc: 'El instructor señala la columna correcta sin hablar.' },
+        4: { name: 'Nivel 4 (Ayuda Física/Modelado)', desc: 'El instructor coloca la palabra en su sitio, explica por qué va allí y pide al alumno que repita la acción.' }
+    };
+
+    // --- GALERÍAS PRE-CARGADAS ---
+    const GALLERIES = {
+        default: {
+            name: 'Galería 1: Predeterminado',
+            categories: [
+                { 
+                    id: 'who', label: '¿Quién?', sublabel: 'Persona', article: 'una', color: 'bg-blue-100', borderColor: 'border-blue-400',
+                    desc: 'Las Personas son los individuos o grupos que aparecen en la historia.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=300', name: 'Una Niña', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=300', name: 'Un Niño', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1559839734-2b71f1e3c77d?w=300', name: 'Doctora', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1581630325432-0268f764a787?w=300', name: 'Pelota', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1543393315-779816008639?w=300', name: 'Parque', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'where', label: '¿Dónde?', sublabel: 'Lugar', article: 'un', color: 'bg-green-100', borderColor: 'border-green-400',
+                    desc: 'Los Lugares son los espacios o sitios donde ocurre la historia.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1543393315-779816008639?w=300', name: 'Parque', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300', name: 'Playa', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=300', name: 'Escuela', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=300', name: 'Niña', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1581630325432-0268f764a787?w=300', name: 'Pelota', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'what', label: '¿Qué?', sublabel: 'Objeto / Cosa', article: 'un', color: 'bg-yellow-100', borderColor: 'border-yellow-400',
+                    desc: '¿Qué? se refiere a un objeto, cosa o elemento inanimado de la historia.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1581630325432-0268f764a787?w=300', name: 'Pelota', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300', name: 'Libro', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=300', name: 'Lápiz', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1559839734-2b71f1e3c77d?w=300', name: 'Doctora', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1543393315-779816008639?w=300', name: 'Parque', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'action', label: '¿Qué hace?', sublabel: 'Acción / Pasos', article: 'una', color: 'bg-orange-100', borderColor: 'border-orange-400',
+                    desc: '¿Qué hace? se refiere a las acciones específicas o los pasos que realizan los personajes.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1518331647614-7a1f04cd34cf?w=300', name: 'Saltar', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=300', name: 'Comer', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=300', name: 'Escuela', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1581630325432-0268f764a787?w=300', name: 'Pelota', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=300', name: 'Niña', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'task', label: 'Tarea', sublabel: 'Evento', article: 'un', color: 'bg-red-100', borderColor: 'border-red-400',
+                    desc: 'La Tarea es el incidente o suceso principal que describe de qué trata el relato.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=300', name: 'Lucas saluda a un amigo', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1490718720475-399e223025ca?w=300', name: 'Antonia es una abeja', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=300', name: 'Celebrar un cumpleaños', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=300', name: 'Lápiz', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1581630325432-0268f764a787?w=300', name: 'Pelota', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1559839734-2b71f1e3c77d?w=300', name: 'Doctora', isPositive: false }
+                    ]
+                }
+            ]
+        },
+        animals: {
+            name: 'Galería 2: Animales y Naturaleza',
+            categories: [
+                { 
+                    id: 'who', label: '¿Quién?', sublabel: 'Animal', article: 'un', color: 'bg-blue-100', borderColor: 'border-blue-400',
+                    desc: 'Los Animales son seres vivos que se mueven y tienen vida.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=300', name: 'Perro', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300', name: 'Gato', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300', name: 'Pájaro', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1458668383970-8ddd3927deed?w=300', name: 'Árbol', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300', name: 'Montaña', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=300', name: 'Sol', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'where', label: '¿Dónde?', sublabel: 'Hábitat', article: 'un', color: 'bg-green-100', borderColor: 'border-green-400',
+                    desc: 'Los Hábitats son los lugares donde viven los animales.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=300', name: 'Selva', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300', name: 'Montaña', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300', name: 'Océano', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=300', name: 'Perro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300', name: 'Gato', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=300', name: 'Niña', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'what', label: '¿Qué?', sublabel: 'Alimento', article: 'un', color: 'bg-yellow-100', borderColor: 'border-yellow-400',
+                    desc: 'Los Alimentos son lo que comen los animales para sobrevivir.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1568702846914-96b305d2c8c7?w=300', name: 'Manzana', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1587735243615-c03f25aaff15?w=300', name: 'Zanahoria', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1550258987-190a2d41a8ba?w=300', name: 'Pescado', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=300', name: 'Perro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=300', name: 'Selva', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'action', label: '¿Qué hace?', sublabel: 'Acción', article: 'una', color: 'bg-orange-100', borderColor: 'border-orange-400',
+                    desc: 'Las Acciones son lo que hacen los animales.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=300', name: 'Nadar', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1444464666168-49d633b86797?w=300', name: 'Volar', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=300', name: 'Caminar', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1568702846914-96b305d2c8c7?w=300', name: 'Manzana', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=300', name: 'Perro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=300', name: 'Selva', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'task', label: 'Tarea', sublabel: 'Actividad', article: 'una', color: 'bg-red-100', borderColor: 'border-red-400',
+                    desc: 'Las Actividades son lo que hacen los animales juntos.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300', name: 'Jugar en el parque', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1513245543132-31f507417b26?w=300', name: 'Buscar comida', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300', name: 'Dormir juntos', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=300', name: 'Perro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1568702846914-96b305d2c8c7?w=300', name: 'Manzana', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=300', name: 'Selva', isPositive: false }
+                    ]
+                }
+            ]
+        },
+        school: {
+            name: 'Galería 3: Escuela',
+            categories: [
+                { 
+                    id: 'who', label: '¿Quién?', sublabel: 'Persona de la Escuela', article: 'una', color: 'bg-blue-100', borderColor: 'border-blue-400',
+                    desc: 'Las Personas de la Escuela son quienes trabajan y estudian ahí.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300', name: 'Maestro', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300', name: 'Estudiante', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1521791055366-0d553872125f?w=300', name: 'Directora', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300', name: 'Libro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=300', name: 'Lápiz', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300', name: 'Pintura', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'where', label: '¿Dónde?', sublabel: 'Lugar de la Escuela', article: 'un', color: 'bg-green-100', borderColor: 'border-green-400',
+                    desc: 'Los Lugares de la Escuela son los espacios donde aprendemos.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=300', name: 'Aula', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1519337265831-281ec6cc8514?w=300', name: 'Biblioteca', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=300', name: 'Patio', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300', name: 'Estudiante', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300', name: 'Maestro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300', name: 'Libro', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'what', label: '¿Qué?', sublabel: 'Útil Escolar', article: 'un', color: 'bg-yellow-100', borderColor: 'border-yellow-400',
+                    desc: 'Los Útiles Escolares son las cosas que usamos para estudiar.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300', name: 'Libro', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=300', name: 'Lápiz', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300', name: 'Pintura', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300', name: 'Estudiante', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=300', name: 'Aula', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1461896756913-c23f890e0e0a?w=300', name: 'Correr', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'action', label: '¿Qué hace?', sublabel: 'Actividad Escolar', article: 'una', color: 'bg-orange-100', borderColor: 'border-orange-400',
+                    desc: 'Las Actividades Escolares son lo que hacemos en la escuela.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300', name: 'Estudiar', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300', name: 'Escribir', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=300', name: 'Leer', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300', name: 'Libro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300', name: 'Estudiante', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=300', name: 'Aula', isPositive: false }
+                    ]
+                },
+                { 
+                    id: 'task', label: 'Tarea', sublabel: 'Proyecto Escolar', article: 'un', color: 'bg-red-100', borderColor: 'border-red-400',
+                    desc: 'Los Proyectos Escolares son actividades que hacemos juntos.',
+                    examples: [
+                        { img: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=300', name: 'Hacer un dibujo', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300', name: 'Presentar un trabajo', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=300', name: 'Jugar en grupo', isPositive: true },
+                        { img: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300', name: 'Libro', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300', name: 'Estudiante', isPositive: false },
+                        { img: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=300', name: 'Aula', isPositive: false }
+                    ]
+                }
+            ]
+        }
+    };
+
+    // --- LÓGICA DE DATOS ---
+    let CONFIG = JSON.parse(JSON.stringify(GALLERIES.default));
+
+    // --- ESTADO DEL SISTEMA ---
+    let state = {
+        currentStage: 'home', 
+        catIdx: 0,
+        subStage: 'intro', 
+        conceptQueue: [], 
+        currentConcept: null,
+        unpromptedScore: 0, 
+        totalItems: 10,
+        supportLevel: 1,
+        maxSupportLevel: 4,
+        sessionHistory: JSON.parse(localStorage.getItem('anthophila_mastery')) || [],
+        scaffoldingTimer: null,
+        sortingItems: [],
+        sortingDetails: []
+    };
+
+    let mainContent, btnNext, sessionDots, stageNameDisplay;
+    let currentGalleryKey = 'default';
+
+    function init() {
+        mainContent = document.getElementById('main-content');
+        btnNext = document.getElementById('btn-next');
+        sessionDots = document.getElementById('session-dots');
+        stageNameDisplay = document.getElementById('current-stage-name');
+
+        const savedConfig = loadCustomConfig(currentGalleryKey);
+        if (savedConfig) {
+            CONFIG = sanitizeConfig(savedConfig);
+        }
+        updateMasteryUI();
+        render();
+    }
+
+    function resetCustomConfig() {
+        if (confirm('¿Está seguro de que desea restablecer todas las imágenes personalizadas para esta galería?')) {
+            localStorage.removeItem(`anthophila_custom_config_${currentGalleryKey}`);
+            CONFIG = JSON.parse(JSON.stringify(GALLERIES[currentGalleryKey]));
+            render();
+        }
+    }
+
+    function goHome() {
+        state.currentStage = 'home';
+        state.catIdx = 0;
+        state.subStage = 'intro';
+        state.unpromptedScore = 0;
+        state.sortingDetails = [];
+        state.supportLevel = 1;
+        render();
+    }
+
+    function renderHome() {
+        if (stageNameDisplay) {
+            stageNameDisplay.innerText = "Selecciona una Galería";
+        }
+        mainContent.innerHTML = `
+            <div class="w-full max-w-4xl">
+                <h2 class="text-3xl font-bold mb-8 text-center">Bienvenido al Entrenador Anthophila</h2>
+                
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    ${Object.entries(GALLERIES).map(([key, gallery]) => `
+                        <div class="bg-white border-4 border-blue-200 rounded-2xl p-6 hover:border-blue-500 transition cursor-pointer shadow-lg" onclick="selectGallery('${key}')">
+                            <h3 class="text-xl font-bold text-blue-600 mb-2">${gallery.name}</h3>
+                            <p class="text-gray-600 text-sm mb-4">${gallery.categories.length} categorías con 6 ejemplos cada una</p>
+                            <div class="flex gap-2 flex-wrap">
+                                ${gallery.categories.slice(0, 3).map(cat => `
+                                    <span class="px-2 py-1 text-xs rounded ${cat.color} ${cat.borderColor} border">${cat.label}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="text-center">
+                    <p class="text-gray-500 mb-4">O sube tus propias imágenes personalizadas:</p>
+                    <button onclick="state.currentStage='config'; render();" class="bg-purple-600 text-white px-8 py-4 rounded-2xl text-xl font-bold shadow-lg hover:bg-purple-700 transition">
+                        📤 Configurar Imágenes Personalizadas
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function selectGallery(galleryKey) {
+        currentGalleryKey = galleryKey;
+        const savedConfig = loadCustomConfig(galleryKey);
+        if (savedConfig) {
+            CONFIG = sanitizeConfig(savedConfig);
+        } else {
+            CONFIG = JSON.parse(JSON.stringify(GALLERIES[galleryKey]));
+        }
+        state.currentStage = 'config';
+        render();
+    }
+
+    function renderConfig() {
+        if (stageNameDisplay) {
+            stageNameDisplay.innerText = "Configuración - Subir Imágenes Personalizadas";
+        }
+        mainContent.innerHTML = `
+            <div class="w-full max-w-4xl">
+                <h2 class="text-3xl font-bold mb-6 text-center">Subir Imágenes Personalizadas (Opcional)</h2>
+                <p class="text-gray-600 mb-8 text-center">Puedes agregar tus propias imágenes para cada categoría. Si no subes nada, se usarán las imágenes de la galería seleccionada.</p>
+                
+                <div class="space-y-8">
+                    ${CONFIG.categories.map(cat => {
+                        const catLabel = cat.label || 'Categoría';
+                        const catSublabel = cat.sublabel || '';
+                        return `
+                        <div class="bg-gray-50 p-6 rounded-2xl border-2 border-gray-200">
+                            <h3 class="text-xl font-bold mb-4 text-blue-600">${catLabel} (${catSublabel})</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                                <p class="col-span-full text-sm font-bold text-green-600">✅ Ejemplos SI:</p>
+                                ${cat.examples.filter(e => e.isPositive).map((example, idx) => {
+                                    const realIdx = cat.examples.findIndex(e => e === example);
+                                    return `
+                                        <div class="flex flex-col items-center gap-2">
+                                            <img id="preview-${cat.id}-${realIdx}" src="${example.img}" class="w-24 h-24 object-cover rounded-lg shadow">
+                                            <input type="file" accept="image/*" onchange="handleImageUpload(event, '${cat.id}', ${realIdx})" class="text-sm">
+                                            <span class="text-xs text-gray-500">${example.name || 'Sin nombre'}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <p class="col-span-full text-sm font-bold text-red-600">❌ Ejemplos NO:</p>
+                                ${cat.examples.filter(e => !e.isPositive).map((example, idx) => {
+                                    const realIdx = cat.examples.findIndex(e => e === example);
+                                    return `
+                                        <div class="flex flex-col items-center gap-2">
+                                            <img id="preview-${cat.id}-${realIdx}" src="${example.img}" class="w-24 h-24 object-cover rounded-lg shadow">
+                                            <input type="file" accept="image/*" onchange="handleImageUpload(event, '${cat.id}', ${realIdx})" class="text-sm">
+                                            <span class="text-xs text-gray-500">${example.name || 'Sin nombre'}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;}).join('')}
+                </div>
+
+                <div class="mt-8 flex flex-wrap gap-4 justify-center items-center">
+                    <button onclick="exportCustomConfigJSON()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-lg font-bold shadow-lg hover:bg-indigo-700 transition">
+                        📥 Exportar JSON
+                    </button>
+                    <label class="bg-teal-600 text-white px-6 py-3 rounded-xl text-lg font-bold shadow-lg hover:bg-teal-700 transition cursor-pointer">
+                        📤 Cargar JSON
+                        <input type="file" accept=".json" onchange="importCustomConfigJSON(event)" class="hidden">
+                    </label>
+                    <button onclick="resetCustomConfig()" class="bg-red-500 text-white px-6 py-3 rounded-xl text-lg font-bold shadow-lg hover:bg-red-600 transition">
+                        🔄 Restablecer
+                    </button>
+                    <button onclick="startTraining()" class="bg-blue-600 text-white px-12 py-5 rounded-2xl text-2xl font-bold shadow-lg hover:bg-blue-700 transition">
+                        🚀 Comenzar Entrenamiento
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function saveCustomConfig() {
+        try {
+            localStorage.setItem(`anthophila_custom_config_${currentGalleryKey}`, JSON.stringify(CONFIG));
+        } catch (e) {
+            if (e.name === 'QuotaExceededError') {
+                console.warn('LocalStorage limit exceeded. Images will not be saved for next session.');
+            }
+        }
+    }
+
+    function loadCustomConfig(galleryKey) {
+        const saved = localStorage.getItem(`anthophila_custom_config_${galleryKey}`);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Error loading custom config:', e);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    function exportCustomConfigJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(CONFIG, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `imagenes_personalizadas_${currentGalleryKey}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function sanitizeConfig(config) {
+        if (!config || !config.categories) return config;
+        config.categories = config.categories.map(cat => {
+            if (cat.article === 'undefined' || !cat.article) cat.article = 'un';
+            if (cat.label === 'undefined') cat.label = '';
+            if (cat.sublabel === 'undefined') cat.sublabel = '';
+            if (cat.desc === 'undefined') cat.desc = '';
+            
+            if (cat.examples) {
+                cat.examples = cat.examples.map(ex => {
+                    if (ex.name === 'undefined') ex.name = '';
+                    return ex;
+                });
+            }
+            return cat;
+        });
+        return config;
+    }
+
+    function importCustomConfigJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            if (!confirm("El archivo es muy grande (" + (file.size / 1024 / 1024).toFixed(1) + " MB). Es posible que el navegador no pueda guardarlo permanentemente. ¿Deseas continuar?")) {
+                event.target.value = '';
+                return;
+            }
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedConfig = JSON.parse(e.target.result);
+                if (importedConfig && importedConfig.categories) {
+                    const defaultConfig = JSON.parse(JSON.stringify(GALLERIES[currentGalleryKey] || GALLERIES.default));
+                    
+                    importedConfig.categories = importedConfig.categories.map(importedCat => {
+                        const defaultCat = defaultConfig.categories.find(c => c.id === importedCat.id) || {};
+                        const mergedCat = { ...defaultCat };
+                        Object.keys(importedCat).forEach(key => {
+                            if (importedCat[key] !== null && importedCat[key] !== undefined && importedCat[key] !== 'undefined') {
+                                mergedCat[key] = importedCat[key];
+                            }
+                        });
+                        mergedCat.examples = importedCat.examples || defaultCat.examples;
+                        return mergedCat;
+                    });
+
+                    CONFIG = sanitizeConfig(importedConfig);
+                    
+                    try {
+                        localStorage.setItem(`anthophila_custom_config_${currentGalleryKey}`, JSON.stringify(CONFIG));
+                        alert("Imágenes personalizadas cargadas y guardadas correctamente.");
+                    } catch (storageErr) {
+                        console.error("Error al guardar en localStorage:", storageErr);
+                        alert("Las imágenes se cargaron para esta sesión, pero son demasiado grandes para guardarse permanentemente (Límite de 5MB excedido).");
+                    }
+                    
+                    renderConfig();
+                } else {
+                    alert("El archivo JSON no tiene el formato correcto (debe contener categorías).");
+                }
+            } catch (err) {
+                console.error("Error al procesar JSON:", err);
+                alert("Error al procesar el archivo: El archivo JSON es inválido o está dañado.\n\nDetalle: " + err.message);
+            }
+        };
+        reader.onerror = function() {
+            alert("Error al leer el archivo del disco.");
+        };
+        reader.readAsText(file);
+    }
+
+    function handleImageUpload(event, catId, exampleIdx) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const cat = CONFIG.categories.find(c => c.id === catId);
+                cat.examples[exampleIdx].img = e.target.result;
+                document.getElementById(`preview-${catId}-${exampleIdx}`).src = e.target.result;
+                saveCustomConfig();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function startTraining() {
+        state.currentStage = 'acquisition';
+        render();
+    }
+
+    function updateMasteryUI() {
+        if (!sessionDots) return;
+        sessionDots.innerHTML = '';
+        const history = state.sessionHistory.slice(-5);
+        for(let i=0; i<5; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'progress-dot';
+            if(history[i] === true) dot.classList.add('dot-success');
+            else if(history[i] === false) dot.classList.add('dot-fail');
+            sessionDots.appendChild(dot);
+        }
+    }
+
+    function render() {
+        if (!mainContent) return;
+        mainContent.innerHTML = '';
+        btnNext.classList.add('hidden');
+        clearTimeout(state.scaffoldingTimer);
+        state.supportLevel = 1;
+
+        if (state.currentStage === 'home') renderHome();
+        else if (state.currentStage === 'config') renderConfig();
+        else if (state.currentStage === 'acquisition') renderAcquisition();
+        else if (state.currentStage === 'sorting') renderSorting();
+        else renderResults();
+    }
+
+    function renderAcquisition() {
+        const cat = CONFIG.categories[state.catIdx];
+        if (!cat) return;
+
+        const catLabel = cat.label || 'Categoría';
+        const catSublabel = cat.sublabel || '';
+        const catDesc = cat.desc || '';
+        const catArticle = (cat.article && cat.article !== 'undefined') ? cat.article : 'un';
+
+        if (stageNameDisplay) {
+            stageNameDisplay.innerText = `Pre-enseñanza: ${catLabel} (${catSublabel})`;
+        }
+
+        if (state.subStage === 'intro') {
+            mainContent.innerHTML = `
+                <div class="text-center animate-fadeIn">
+                    <h2 class="text-5xl font-bold mb-2 text-blue-600">${catLabel}</h2>
+                    <h3 class="text-3xl font-bold mb-8 text-gray-500">${catSublabel}</h3>
+                    <img src="${(cat.examples.find(e => e.isPositive) || {}).img}" class="w-80 h-80 object-cover rounded-3xl shadow-xl mx-auto mb-8 border-8 border-white">
+                    <p class="text-3xl font-medium max-w-2xl text-center leading-relaxed px-4">${catDesc}</p>
+                </div>
+            `;
+            speak(`${catLabel}. ${catDesc}`);
+            btnNext.classList.remove('hidden');
+            btnNext.onclick = () => {
+                state.subStage = 'concepts';
+                state.conceptQueue = [...cat.examples].sort(() => Math.random() - 0.5);
+                render();
+            };
+        } else if (state.subStage === 'concepts') {
+            if (state.conceptQueue.length === 0) {
+                state.subStage = 'test';
+                render();
+                return;
+            }
+            state.currentConcept = state.conceptQueue.pop();
+            const conceptName = state.currentConcept.name || 'este elemento';
+            const questionText = `¿Es ${conceptName} ${catArticle} ${catSublabel}?`;
+            mainContent.innerHTML = `
+                <div class="text-center">
+                    <h2 class="text-4xl font-bold mb-10">${questionText}</h2>
+                    <div class="bg-white p-4 rounded-3xl shadow-lg inline-block mb-10">
+                        <img src="${state.currentConcept.img}" class="w-72 h-72 object-cover rounded-2xl mx-auto shadow-md">
+                        <p class="text-2xl font-bold mt-4 text-gray-700">${conceptName}</p>
+                    </div>
+                    <div class="flex gap-12 justify-center">
+                        <button onclick="handleConcept(true)" class="bg-green-500 text-white text-4xl px-16 py-8 rounded-3xl font-bold shadow-xl active:scale-95 transition">SÍ</button>
+                        <button onclick="handleConcept(false)" class="bg-red-500 text-white text-4xl px-16 py-8 rounded-3xl font-bold shadow-xl active:scale-95 transition">NO</button>
+                    </div>
+                </div>
+            `;
+            speak(questionText);
+        } else if (state.subStage === 'test') {
+            const posExample = cat.examples.find(e => e.isPositive) || cat.examples[0];
+            const posName = posExample.name || 'este elemento';
+            mainContent.innerHTML = `
+                <div class="text-center w-full">
+                    <h2 class="text-3xl font-bold mb-10">¿A qué categoría pertenece ${posName}?</h2>
+                    <div class="flex flex-col items-center gap-10">
+                        <div id="drag-item" class="p-4 bg-white rounded-2xl shadow-lg border-2 border-gray-100">
+                            <img src="${posExample.img}" class="w-56 h-56 object-cover rounded-xl draggable-card" draggable="true">
+                            <p class="text-2xl font-bold mt-4">${posName}</p>
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-6">
+                            ${CONFIG.categories.map(c => `
+                                <div ondragover="event.preventDefault()" ondrop="handleTestDrop('${c.id}', '${cat.id}')" 
+                                     id="drop-${c.id}" class="w-44 h-44 ${c.color || 'bg-gray-100'} ${c.borderColor || 'border-gray-400'} border-4 rounded-3xl flex flex-col items-center justify-center p-4 drop-zone">
+                                    <span class="text-xl font-bold text-center leading-tight">${c.label || '...'}</span>
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase mt-2">${c.sublabel || ''}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function handleConcept(userSaidYes) {
+        const correct = userSaidYes === state.currentConcept.isPositive;
+        if (correct) {
+            showFeedback(true, "¡Correcto!");
+            setTimeout(render, 1500);
+        } else {
+            showFeedback(false, "Fíjate bien");
+            speak(`Recuerda: ${CONFIG.categories[state.catIdx].desc}`);
+        }
+    }
+
+    function handleTestDrop(droppedId, correctId) {
+        if (droppedId === correctId) {
+            showFeedback(true, "¡Excelente!");
+            if (state.catIdx < CONFIG.categories.length - 1) {
+                state.catIdx++;
+                state.subStage = 'intro';
+            } else {
+                state.currentStage = 'sorting';
+                state.unpromptedScore = 0;
+                state.catIdx = 0;
+                state.sortingItems = generateSortingList();
+                state.sortingDetails = []; 
+            }
+            setTimeout(render, 1500);
+        } else {
+            showFeedback(false, "Ese no es el cajón");
+            clearTimeout(state.scaffoldingTimer);
+            applyNextSupportLevel(correctId, `drop-${correctId}`);
+        }
+    }
+
+    function generateSortingList() {
+        let list = [];
+        CONFIG.categories.forEach(c => {
+            const positives = c.examples.filter(e => e.isPositive);
+            list.push({ ...positives[0], category: c.id, categoryLabel: c.label, placed: false, id: Math.random() });
+            list.push({ ...positives[1], category: c.id, categoryLabel: c.label, placed: false, id: Math.random() });
+        });
+        return list.sort(() => Math.random() - 0.5);
+    }
+
+    function renderSorting() {
+        const item = state.sortingItems.find(i => !i.placed);
+        if (!item) {
+            state.currentStage = 'result';
+            render();
+            return;
+        }
+
+        if (stageNameDisplay) {
+            stageNameDisplay.innerText = "Prueba de Clasificación (Sorting)";
+        }
+
+        mainContent.innerHTML = `
+            <div class="w-full">
+                <div class="flex justify-center mb-10">
+                    <div id="drag-source" class="bg-white p-5 rounded-3xl shadow-2xl border-4 border-blue-100 flex flex-col items-center">
+                        <img src="${item.img}" class="w-52 h-52 object-cover rounded-2xl mb-4" draggable="true">
+                        <span class="text-2xl font-bold">${item.name}</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    ${CONFIG.categories.map(c => `
+                        <div id="zone-${c.id}" ondragover="event.preventDefault()" ondrop="handleSortingDrop('${c.id}', '${item.category}', ${item.id})"
+                             class="drop-zone ${c.color} ${c.borderColor} border-4 border-b-8 rounded-3xl p-4 flex flex-col items-center">
+                            <h3 class="text-lg font-bold text-center leading-tight">${c.label}</h3>
+                            <p class="text-[10px] font-bold text-gray-500 mb-4 uppercase">${c.sublabel}</p>
+                            <div class="flex flex-wrap gap-1 justify-center">
+                                ${state.sortingItems.filter(si => si.placed && si.category === c.id).map(si => `
+                                    <div class="bg-white p-1 rounded-lg border shadow-sm">
+                                        <img src="${si.img}" class="w-10 h-10 object-cover rounded">
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        speak(`¿En qué cajón va: ${item.name}?`);
+    }
+
+    function handleSortingDrop(droppedId, correctId, itemId) {
+        const item = state.sortingItems.find(i => i.id === itemId);
+        if (!item) return;
+
+        if (droppedId === correctId) {
+            const supportInfo = SUPPORT_LEVELS[state.supportLevel] || { name: 'Ayuda desconocida' };
+            state.sortingDetails.push({
+                nombre: item.name || 'Sin nombre',
+                categoria: item.categoryLabel || 'Sin categoría',
+                independiente: state.supportLevel === 1,
+                nivelApoyo: state.supportLevel,
+                ayuda: supportInfo.name
+            });
+
+            if (state.supportLevel === 1) state.unpromptedScore++;
+            item.placed = true;
+            showFeedback(true, "¡Bien hecho!");
+            setTimeout(render, 1000);
+        } else {
+            showFeedback(false, "Intenta en otro lugar");
+            clearTimeout(state.scaffoldingTimer);
+            applyNextSupportLevel(correctId, `zone-${correctId}`);
+        }
+    }
+
+    function applyNextSupportLevel(correctId, elId) {
+        if (state.supportLevel >= state.maxSupportLevel) return;
+        
+        state.supportLevel++;
+        const el = document.getElementById(elId);
+        const cat = CONFIG.categories.find(c => c.id === correctId);
+
+        if (state.supportLevel === 2) {
+            speak(`Recuerda: ${cat.desc}`);
+        } else if (state.supportLevel === 3) {
+            if (el) el.classList.add('highlight');
+        } else if (state.supportLevel === 4) {
+            if (el) el.classList.add('highlight');
+            speak(`${cat.desc} Este ítem va aquí.`);
+        }
+    }
+
+    function highlight(id) {
+        const el = document.getElementById(id.startsWith('zone-') ? id : `drop-${id}`);
+        if (el) {
+            el.classList.add('highlight');
+            setTimeout(() => el.classList.remove('highlight'), 2000);
+        }
+    }
+
+    function downloadJSON() {
+        const report = {
+            fecha: new Date().toISOString(),
+            precision: Math.round((state.unpromptedScore / state.sortingItems.length) * 100),
+            itemsIndependientes: state.unpromptedScore,
+            totalItems: state.sortingItems.length,
+            estabilidad: state.sessionHistory.slice(-5).filter(s => s === true).length + '/5',
+            detalles: state.sortingDetails
+        };
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(report, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "informe_anthophila.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function renderResults() {
+        const totalItemsInSorting = state.sortingItems.length;
+        const precision = Math.round((state.unpromptedScore / totalItemsInSorting) * 100);
+        const success = precision >= 87;
+        
+        state.sessionHistory.push(success);
+        localStorage.setItem('anthophila_mastery', JSON.stringify(state.sessionHistory));
+        updateMasteryUI();
+
+        if (stageNameDisplay) {
+            stageNameDisplay.innerText = "Informe Detallado del Ensayo";
+        }
+
+        mainContent.innerHTML = `
+            <div class="w-full max-w-4xl bg-white p-8 rounded-3xl shadow-2xl border-4 ${success ? 'border-green-500' : 'border-red-400'}">
+                <div class="text-center mb-8">
+                    <h2 class="text-4xl font-bold mb-2">${success ? '¡Maestría Lograda!' : 'Ensayo en Progreso'}</h2>
+                    <p class="text-xl text-gray-500 italic">Sesión de Evaluación de Clasificación Wh-</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <div class="bg-blue-50 p-6 rounded-2xl text-center border-2 border-blue-100">
+                        <p class="text-sm font-bold uppercase text-blue-400 mb-1">Aciertos Libres</p>
+                        <p class="text-5xl font-black text-blue-600">${precision}%</p>
+                        <p class="text-xs mt-2 font-semibold">Meta: 87%</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-2xl text-center border-2 border-gray-100">
+                        <p class="text-sm font-bold uppercase text-gray-400 mb-1">Items Independientes</p>
+                        <p class="text-5xl font-black text-gray-700">${state.unpromptedScore}/${totalItemsInSorting}</p>
+                        <p class="text-xs mt-2 font-semibold">Sin ayuda externa</p>
+                    </div>
+                    <div class="bg-orange-50 p-6 rounded-2xl text-center border-2 border-orange-100">
+                        <p class="text-sm font-bold uppercase text-orange-400 mb-1">Estabilidad</p>
+                        <p class="text-5xl font-black text-orange-600">${state.sessionHistory.slice(-5).filter(s => s === true).length}/5</p>
+                        <p class="text-xs mt-2 font-semibold">Últimas sesiones</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto mb-10">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 border-b">
+                                <th class="p-4 text-xs font-bold uppercase text-gray-600">Ítem (Estímulo)</th>
+                                <th class="p-4 text-xs font-bold uppercase text-gray-600">Categoría</th>
+                                <th class="p-4 text-xs font-bold uppercase text-gray-600">Estatus</th>
+                                <th class="p-4 text-xs font-bold uppercase text-gray-600">Nivel de Apoyo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${state.sortingDetails.map(d => `
+                                <tr class="border-b hover:bg-gray-50 transition">
+                                    <td class="p-4 font-bold text-gray-700">${d.nombre}</td>
+                                    <td class="p-4 text-gray-600 text-sm">${d.categoria}</td>
+                                    <td class="p-4">
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${d.independiente ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                                            ${d.independiente ? 'INDEPENDIENTE' : 'CON AYUDA'}
+                                        </span>
+                                    </td>
+                                    <td class="p-4 text-gray-500 text-xs italic">${d.ayuda}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4 justify-center items-center">
+                    <button onclick="resetSession()" class="bg-blue-600 text-white px-10 py-5 rounded-2xl text-xl font-bold hover:bg-blue-700 shadow-xl transition active:scale-95">
+                        Reiniciar Ensayo
+                    </button>
+                    <button onclick="downloadJSON()" class="bg-green-600 text-white px-10 py-5 rounded-2xl text-xl font-bold hover:bg-green-700 shadow-xl transition active:scale-95">
+                        📥 Descargar JSON
+                    </button>
+                    <button onclick="window.print()" class="text-gray-500 font-bold hover:text-blue-600 transition">
+                        🖨️ Imprimir Reporte
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function resetSession() {
+        state.currentStage = 'home';
+        state.catIdx = 0;
+        state.subStage = 'intro';
+        state.unpromptedScore = 0;
+        state.sortingDetails = [];
+        state.supportLevel = 1;
+        render();
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'es-ES';
+            msg.rate = 0.85;
+            window.speechSynthesis.speak(msg);
+        }
+    }
+
+    function showFeedback(success, text) {
+        const overlay = document.getElementById('feedback');
+        const icon = document.getElementById('feedback-icon');
+        const txt = document.getElementById('feedback-text');
+        if (!overlay || !icon || !txt) return;
+        
+        overlay.style.display = 'flex';
+        icon.innerText = success ? '🌟' : '💡';
+        txt.innerText = text;
+        txt.className = `text-4xl font-bold ${success ? 'text-green-600' : 'text-orange-500'}`;
+        setTimeout(() => overlay.style.display = 'none', 1500);
+    }
+
+    window.onload = () => {
+        if (sessionStorage.getItem('anthophila_authenticated') === 'true') {
+            document.getElementById('auth-overlay').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            init();
+        }
+    };
+</script>
+
+</body>
+</html>
